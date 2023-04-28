@@ -9,7 +9,7 @@
 import UIKit
 
 class ImageViewController: UIViewController {
-	var owner: SelectionViewController!
+	var owner: SelectionViewController?
 	var image: String!
 	var animTimer: Timer!
 
@@ -19,6 +19,7 @@ class ImageViewController: UIViewController {
 		super.loadView()
 		
 		view.backgroundColor = UIColor.black
+        
 
 		// create an image view that fills the screen
 		imageView = UIImageView()
@@ -48,19 +49,22 @@ class ImageViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-		title = image.replacingOccurrences(of: "-Large.jpg", with: "")
-		let original = UIImage(named: image)!
+        if let image = image {
+            title = image.replacingOccurrences(of: "-Large.jpg", with: "")
+        }
+        
+        if let original = UIImage(named: image) {
+            let renderer = UIGraphicsImageRenderer(size: original.size)
+            
+            let rounded = renderer.image { ctx in
+                ctx.cgContext.addEllipse(in: CGRect(origin: CGPoint.zero, size: original.size))
+                ctx.cgContext.closePath()
 
-		let renderer = UIGraphicsImageRenderer(size: original.size)
-
-		let rounded = renderer.image { ctx in
-			ctx.cgContext.addEllipse(in: CGRect(origin: CGPoint.zero, size: original.size))
-			ctx.cgContext.closePath()
-
-			original.draw(at: CGPoint.zero)
-		}
-
-		imageView.image = rounded
+                original.draw(at: CGPoint.zero)
+            }
+            
+            imageView.image = rounded
+        }
     }
 
 	override func viewDidAppear(_ animated: Bool) {
@@ -81,6 +85,6 @@ class ImageViewController: UIViewController {
 		defaults.set(currentVal, forKey:image)
 
 		// tell the parent view controller that it should refresh its table counters when we go back
-		owner.dirty = true
+		owner?.dirty = true
 	}
 }
