@@ -12,6 +12,10 @@ class SelectionViewController: UITableViewController {
 	var items = [String]() // this is the array that will store the filenames to load
 	var viewControllers = [UIViewController]() // create a cache of the detail view controllers for faster loading
 	var dirty = false
+    var images = [UIImage]()
+    var imagesLarge = [UIImage]()
+    
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,16 +26,37 @@ class SelectionViewController: UITableViewController {
 		tableView.separatorStyle = .none
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell")
         
-		// load all the JPEGs into our array
 		let fm = FileManager.default
-
-		if let tempItems = try? fm.contentsOfDirectory(atPath: Bundle.main.resourcePath!) {
-			for item in tempItems {
-				if item.range(of: "Large") != nil {
-					items.append(item)
-				}
-			}
-		}
+        if let resourcePath = Bundle.main.resourcePath {
+            let tempItems = try? fm.contentsOfDirectory(atPath: resourcePath)
+            for item in tempItems ?? [] {
+                if item.range(of: "Large") != nil {
+                    items.append(item)
+                    let imagePath = resourcePath + "/" + item
+                    print(imagePath)
+                    if let image = UIImage(contentsOfFile: imagePath) {
+                        let newSize = CGSize(width: 90, height: 90)
+                        UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
+                        let imageRect = CGRect(origin: .zero, size: newSize)
+                        let roundedPath = UIBezierPath(roundedRect: imageRect, cornerRadius: newSize.width / 2.0)
+                        roundedPath.addClip()
+                        image.draw(in: imageRect)
+                        if let scaledImage = UIGraphicsGetImageFromCurrentImageContext() {
+                            UIGraphicsEndImageContext()
+                            images.append(scaledImage)
+                        } else {
+                            print("Scaling failed")
+                        }
+                        
+                    }
+                }
+            }
+        } else {
+            fatalError("Failed to get resource path from main bundle")
+        }
+        
+        imagesLarge = Array(repeating: images, count: 10).flatMap { $0 }
+         
     }
 
 	override func viewWillAppear(_ animated: Bool) {
@@ -52,30 +77,23 @@ class SelectionViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // Return the number of rows in the section.
-        return items.count * 10
+        return imagesLarge.count
     }
 
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
-
+        
+        
 		// find the image for this cell, and load its thumbnail
-		let currentImage = items[indexPath.row % items.count]
-		let imageRootName = currentImage.replacingOccurrences(of: "Large", with: "Thumb")
-		let path = Bundle.main.path(forResource: imageRootName, ofType: nil)!
-		let original = UIImage(contentsOfFile: path)!
-
+        let currentImage = items[indexPath.row % items.count]
+        
+        let imageToShow = imagesLarge[indexPath.row]
+        
+        
         let renderRect = CGRect(origin: .zero, size: CGSize(width: 90, height: 90))
-        let renderer = UIGraphicsImageRenderer(size: renderRect.size)
 
-        let rounded = renderer.image { ctx in
-            ctx.cgContext.addEllipse(in: renderRect)
-            ctx.cgContext.clip()
-
-            original.draw(in: renderRect)
-        }
-
-		cell.imageView?.image = rounded
+        cell.imageView?.image = imageToShow
 
 		// give the images a nice shadow to make them look a bit more dramatic
 		cell.imageView?.layer.shadowColor = UIColor.black.cgColor
@@ -102,6 +120,8 @@ class SelectionViewController: UITableViewController {
 
 		// add to our view controller cache and show
 		viewControllers.append(vc)
-		navigationController!.pushViewController(vc, animated: true)
+        if let navController = navigationController {
+            navController.pushViewController(vc, animated: true)
+        }
 	}
 }
